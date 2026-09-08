@@ -23,6 +23,8 @@ The quality logic being ported from WaEnhancer includes Story HD availability, i
 
 GitHub Actions builds a KernelSU/Magisk-style module ZIP. Install Zygisk Next first, then install the generated ZIP from KernelSU Next and reboot.
 
+Pushes to `main` trigger the build workflow automatically.
+
 ## Upstream / license
 
 Media Quality behavior is based on Dev4Mod/WaEnhancer (GPL-3.0). This derivative project is GPL-3.0.
