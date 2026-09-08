@@ -37,10 +37,9 @@ jobs:
           set -eux
           mkdir -p native/third_party native/include
           git clone --depth 1 https://github.com/LSPosed/LSPlant.git native/third_party/LSPlant
-          git -C native/third_party/LSPlant submodule update --init --depth 1 lsplant/src/main/jni/external/dex_builder
+          git -C native/third_party/LSPlant submodule update --init --recursive --depth 1 lsplant/src/main/jni/external/dex_builder
           git clone --depth 1 https://github.com/jmpews/Dobby.git native/third_party/Dobby
-          curl -fsSL https://raw.githubusercontent.com/topjohnwu/zygisk-module-sample/master/module/jni/zygisk.hpp \
-            -o native/include/zygisk.hpp
+          curl -fsSL https://raw.githubusercontent.com/topjohnwu/zygisk-module-sample/master/module/jni/zygisk.hpp -o native/include/zygisk.hpp
 
       - name: Build embedded Java hook payload
         run: |
@@ -50,8 +49,7 @@ jobs:
           test -f "$PLATFORM/android.jar"
           test -x "$BUILD_TOOLS/d8"
           mkdir -p build/java-classes build/dex native/generated
-          javac -source 8 -target 8 -cp "$PLATFORM/android.jar" \
-            -d build/java-classes java/wa/hd/Entry.java
+          javac -source 8 -target 8 -cp "$PLATFORM/android.jar" -d build/java-classes java/wa/hd/Entry.java
           jar cf build/hooker.jar -C build/java-classes .
           "$BUILD_TOOLS/d8" --min-api 28 --output build/dex build/hooker.jar
           test -s build/dex/classes.dex
@@ -61,8 +59,11 @@ jobs:
       - name: Configure native arm64 build
         run: |
           set -eux
+          NDK_ROOT=$(dirname "$(command -v ndk-build)")
+          test -f "$NDK_ROOT/build/cmake/android.toolchain.cmake"
+          echo "Using NDK: $NDK_ROOT"
           cmake -S native -B native/build -G Ninja \
-            -DCMAKE_TOOLCHAIN_FILE="$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake" \
+            -DCMAKE_TOOLCHAIN_FILE="$NDK_ROOT/build/cmake/android.toolchain.cmake" \
             -DANDROID_ABI=arm64-v8a \
             -DANDROID_PLATFORM=android-28 \
             -DANDROID_STL=c++_static \
@@ -87,11 +88,9 @@ jobs:
           Hook engine: standalone LSPlant + Dobby; NO LSPosed framework/app required.
           Resolver: embedded DEX scanner resolves WhatsApp central property getters using
           "Unknown BooleanField" and "Unknown IntField" markers.
-          Quality overrides: video edge/bitrate and image size/quality property IDs derived
-          from WaEnhancer MediaQuality logic.
           Safety: exact-version gate + fail-open. Log tag: WAStatusHD.
-          Success on device requires: LSPlant INIT OK, resolved BOOL/INT,
-          HOOKED central property getters, and APPLIED id=... while posting media.
+          Runtime success requires LSPlant INIT OK, resolved BOOL/INT, HOOKED central property getters,
+          and APPLIED id=... while posting media.
           EOF
           cd out/WAStatusHD-KSU
           zip -9 -r ../WAStatusHD-KSU-v0.4-actual-hook-arm64.zip .
