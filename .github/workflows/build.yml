@@ -2,7 +2,7 @@ name: Build WAStatusHD-KSU
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, v0.4-dev ]
   workflow_dispatch:
 
 permissions:
@@ -14,38 +14,91 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
       - name: Setup Android NDK
         uses: nttld/setup-ndk@v1
         with:
-          ndk-version: r27c
+          ndk-version: r28c
           add-to-path: true
-      - name: Fetch public Zygisk API header
+
+      - name: Setup modern CMake
         run: |
-          curl -fsSL https://raw.githubusercontent.com/topjohnwu/zygisk-module-sample/master/module/jni/zygisk.hpp -o native/jni/zygisk.hpp
-      - name: Build arm64 Zygisk module
+          python3 -m pip install --user 'cmake==3.31.6' ninja
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Fetch hook-engine dependencies
         run: |
-          ndk-build NDK_PROJECT_PATH=native APP_BUILD_SCRIPT=native/jni/Android.mk NDK_APPLICATION_MK=native/jni/Application.mk -j2
+          set -eux
+          mkdir -p native/third_party native/include
+          git clone --depth 1 https://github.com/LSPosed/LSPlant.git native/third_party/LSPlant
+          git -C native/third_party/LSPlant submodule update --init --depth 1 lsplant/src/main/jni/external/dex_builder
+          git clone --depth 1 https://github.com/jmpews/Dobby.git native/third_party/Dobby
+          curl -fsSL https://raw.githubusercontent.com/topjohnwu/zygisk-module-sample/master/module/jni/zygisk.hpp \
+            -o native/include/zygisk.hpp
+
+      - name: Build embedded Java hook payload
+        run: |
+          set -eux
+          PLATFORM=$(find "$ANDROID_HOME/platforms" -maxdepth 1 -mindepth 1 -type d | sort -V | tail -1)
+          BUILD_TOOLS=$(find "$ANDROID_HOME/build-tools" -maxdepth 1 -mindepth 1 -type d | sort -V | tail -1)
+          test -f "$PLATFORM/android.jar"
+          test -x "$BUILD_TOOLS/d8"
+          mkdir -p build/java-classes build/dex native/generated
+          javac -source 8 -target 8 -cp "$PLATFORM/android.jar" \
+            -d build/java-classes java/wa/hd/Entry.java
+          jar cf build/hooker.jar -C build/java-classes .
+          "$BUILD_TOOLS/d8" --min-api 28 --output build/dex build/hooker.jar
+          test -s build/dex/classes.dex
+          (cd build/dex && xxd -i classes.dex > ../../native/generated/hooker_dex.h)
+          grep -q 'classes_dex_len' native/generated/hooker_dex.h
+
+      - name: Configure native arm64 build
+        run: |
+          set -eux
+          cmake -S native -B native/build -G Ninja \
+            -DCMAKE_TOOLCHAIN_FILE="$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake" \
+            -DANDROID_ABI=arm64-v8a \
+            -DANDROID_PLATFORM=android-28 \
+            -DANDROID_STL=c++_static \
+            -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build native LSPlant Zygisk module
+        run: |
+          cmake --build native/build --target wastatushd -j2
+          test -f native/build/libwastatushd.so
+
       - name: Assemble KernelSU module
         run: |
           set -eux
-          test -f native/libs/arm64-v8a/libwastatushd.so
           mkdir -p out/WAStatusHD-KSU/zygisk
           cp module/module.prop out/WAStatusHD-KSU/module.prop
-          cp native/libs/arm64-v8a/libwastatushd.so out/WAStatusHD-KSU/zygisk/arm64-v8a.so
+          cp native/build/libwastatushd.so out/WAStatusHD-KSU/zygisk/arm64-v8a.so
           cat > out/WAStatusHD-KSU/README.txt <<'EOF'
-          WAStatusHD-KSU v0.3
+          WAStatusHD-KSU v0.4 actual-hook
           Exact target: WhatsApp 2.26.34.82 / com.whatsapp
           Requires: KernelSU Next + Zygisk Next
           ABI: arm64-v8a
-          Runtime quality policy: image quality 100/maxEdge 6000/max 50MB; video edge 1920/10Mbps.
-          Safety: exact-version gate + fail-open. No LSPosed framework required.
-          Log tag: WAStatusHD
+          Hook engine: standalone LSPlant + Dobby; NO LSPosed framework/app required.
+          Resolver: embedded DEX scanner resolves WhatsApp central property getters using
+          "Unknown BooleanField" and "Unknown IntField" markers.
+          Quality overrides: video edge/bitrate and image size/quality property IDs derived
+          from WaEnhancer MediaQuality logic.
+          Safety: exact-version gate + fail-open. Log tag: WAStatusHD.
+          Success on device requires: LSPlant INIT OK, resolved BOOL/INT,
+          HOOKED central property getters, and APPLIED id=... while posting media.
           EOF
           cd out/WAStatusHD-KSU
-          zip -9 -r ../WAStatusHD-KSU-v0.3-arm64.zip .
+          zip -9 -r ../WAStatusHD-KSU-v0.4-actual-hook-arm64.zip .
+
       - name: Upload flashable ZIP
         uses: actions/upload-artifact@v4
         with:
-          name: WAStatusHD-KSU-v0.3-arm64
-          path: out/WAStatusHD-KSU-v0.3-arm64.zip
+          name: WAStatusHD-KSU-v0.4-actual-hook-arm64
+          path: out/WAStatusHD-KSU-v0.4-actual-hook-arm64.zip
           if-no-files-found: error
