@@ -14,26 +14,17 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
       - name: Setup Android NDK
         uses: nttld/setup-ndk@v1
         with:
           ndk-version: r27c
           add-to-path: true
-
       - name: Fetch public Zygisk API header
         run: |
-          curl -fsSL https://raw.githubusercontent.com/topjohnwu/zygisk-module-sample/master/module/jni/zygisk.hpp \
-            -o native/jni/zygisk.hpp
-
+          curl -fsSL https://raw.githubusercontent.com/topjohnwu/zygisk-module-sample/master/module/jni/zygisk.hpp -o native/jni/zygisk.hpp
       - name: Build arm64 Zygisk module
         run: |
-          ndk-build \
-            NDK_PROJECT_PATH=native \
-            APP_BUILD_SCRIPT=native/jni/Android.mk \
-            NDK_APPLICATION_MK=native/jni/Application.mk \
-            -j2
-
+          ndk-build NDK_PROJECT_PATH=native APP_BUILD_SCRIPT=native/jni/Android.mk NDK_APPLICATION_MK=native/jni/Application.mk -j2
       - name: Assemble KernelSU module
         run: |
           set -eux
@@ -42,19 +33,19 @@ jobs:
           cp module/module.prop out/WAStatusHD-KSU/module.prop
           cp native/libs/arm64-v8a/libwastatushd.so out/WAStatusHD-KSU/zygisk/arm64-v8a.so
           cat > out/WAStatusHD-KSU/README.txt <<'EOF'
-          WAStatusHD-KSU v0.2-probe
-          Target: WhatsApp 2.26.34 / com.whatsapp
+          WAStatusHD-KSU v0.3
+          Exact target: WhatsApp 2.26.34.82 / com.whatsapp
           Requires: KernelSU Next + Zygisk Next
           ABI: arm64-v8a
-          Purpose: verify exact runtime versionName + WhatsApp ClassLoader before enabling ART MediaQuality hooks.
+          Runtime quality policy: image quality 100/maxEdge 6000/max 50MB; video edge 1920/10Mbps.
+          Safety: exact-version gate + fail-open. No LSPosed framework required.
           Log tag: WAStatusHD
           EOF
           cd out/WAStatusHD-KSU
-          zip -9 -r ../WAStatusHD-KSU-v0.2-probe-arm64.zip .
-
+          zip -9 -r ../WAStatusHD-KSU-v0.3-arm64.zip .
       - name: Upload flashable ZIP
         uses: actions/upload-artifact@v4
         with:
-          name: WAStatusHD-KSU-v0.2-probe-arm64
-          path: out/WAStatusHD-KSU-v0.2-probe-arm64.zip
+          name: WAStatusHD-KSU-v0.3-arm64
+          path: out/WAStatusHD-KSU-v0.3-arm64.zip
           if-no-files-found: error
