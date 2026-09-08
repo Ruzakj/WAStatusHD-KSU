@@ -1,6 +1,6 @@
 id=wastatushd
 name=WA Status HD (KSU Next)
-version=0.2-probe
-versionCode=2
+version=0.3
+versionCode=3
 author=Ruzakj / OpenAI
-summary=WhatsApp 2.26.34 Status/Story HD injector without LSPosed - runtime mapping probe
+summary=WhatsApp 2.26.34.82 Status/Story HD injector without LSPosed - exact runtime quality gate
