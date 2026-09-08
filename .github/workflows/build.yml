@@ -1,0 +1,59 @@
+name: Build WAStatusHD-KSU
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Android NDK
+        uses: nttld/setup-ndk@v1
+        with:
+          ndk-version: r27c
+          add-to-path: true
+
+      - name: Fetch public Zygisk API header
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/topjohnwu/zygisk-module-sample/master/module/jni/zygisk.hpp \
+            -o native/jni/zygisk.hpp
+
+      - name: Build arm64 Zygisk module
+        run: |
+          ndk-build \
+            NDK_PROJECT_PATH=native \
+            APP_BUILD_SCRIPT=native/jni/Android.mk \
+            NDK_APPLICATION_MK=native/jni/Application.mk \
+            -j2
+
+      - name: Assemble KernelSU module
+        run: |
+          set -eux
+          test -f native/libs/arm64-v8a/libwastatushd.so
+          mkdir -p out/WAStatusHD-KSU/zygisk
+          cp module/module.prop out/WAStatusHD-KSU/module.prop
+          cp native/libs/arm64-v8a/libwastatushd.so out/WAStatusHD-KSU/zygisk/arm64-v8a.so
+          cat > out/WAStatusHD-KSU/README.txt <<'EOF'
+          WAStatusHD-KSU v0.1-alpha
+          Target: WhatsApp 2.26.34 / com.whatsapp
+          Requires: KernelSU Next + Zygisk Next
+          ABI: arm64-v8a
+          This alpha verifies standalone Zygisk injection. MediaQuality ART hooks remain fail-open until resolver validation.
+          EOF
+          cd out/WAStatusHD-KSU
+          zip -9 -r ../WAStatusHD-KSU-v0.1-alpha-arm64.zip .
+
+      - name: Upload flashable ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: WAStatusHD-KSU-v0.1-alpha-arm64
+          path: out/WAStatusHD-KSU-v0.1-alpha-arm64.zip
+          if-no-files-found: error
