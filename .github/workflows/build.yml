@@ -42,18 +42,19 @@ jobs:
           cp module/module.prop out/WAStatusHD-KSU/module.prop
           cp native/libs/arm64-v8a/libwastatushd.so out/WAStatusHD-KSU/zygisk/arm64-v8a.so
           cat > out/WAStatusHD-KSU/README.txt <<'EOF'
-          WAStatusHD-KSU v0.1-alpha
+          WAStatusHD-KSU v0.2-probe
           Target: WhatsApp 2.26.34 / com.whatsapp
           Requires: KernelSU Next + Zygisk Next
           ABI: arm64-v8a
-          This alpha verifies standalone Zygisk injection. MediaQuality ART hooks remain fail-open until resolver validation.
+          Purpose: verify exact runtime versionName + WhatsApp ClassLoader before enabling ART MediaQuality hooks.
+          Log tag: WAStatusHD
           EOF
           cd out/WAStatusHD-KSU
-          zip -9 -r ../WAStatusHD-KSU-v0.1-alpha-arm64.zip .
+          zip -9 -r ../WAStatusHD-KSU-v0.2-probe-arm64.zip .
 
       - name: Upload flashable ZIP
         uses: actions/upload-artifact@v4
         with:
-          name: WAStatusHD-KSU-v0.1-alpha-arm64
-          path: out/WAStatusHD-KSU-v0.1-alpha-arm64.zip
+          name: WAStatusHD-KSU-v0.2-probe-arm64
+          path: out/WAStatusHD-KSU-v0.2-probe-arm64.zip
           if-no-files-found: error
