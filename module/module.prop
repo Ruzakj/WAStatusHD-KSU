@@ -1,6 +1,6 @@
 id=wastatushd
 name=WA Status HD (KSU Next)
-version=0.3
-versionCode=3
+version=0.4-actual-hook
+versionCode=4
 author=Ruzakj / OpenAI
-summary=WhatsApp 2.26.34.82 Status/Story HD injector without LSPosed - exact runtime quality gate
+summary=WhatsApp 2.26.34.82 Status/Story HD actual central-property hook via standalone LSPlant
