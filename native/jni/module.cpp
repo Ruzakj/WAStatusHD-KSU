@@ -1,11 +1,10 @@
 #include <jni.h>
 #include <android/log.h>
-#include <cstring>
+#include <string.h>
 #include "zygisk.hpp"
 
 #define LOG_TAG "WAStatusHD"
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
-#define LOGW(...) __android_log_print(ANDROID_LOG_WARN, LOG_TAG, __VA_ARGS__)
 
 namespace {
 constexpr const char *kTargetPackage = "com.whatsapp";
@@ -26,9 +25,7 @@ public:
 
         const char *process = env_->GetStringUTFChars(args->nice_name, nullptr);
         if (process) {
-            // Accept WhatsApp main process only in v0.1. This avoids touching
-            // secondary services until the media resolver is fully validated.
-            target_ = std::strcmp(process, kTargetPackage) == 0;
+            target_ = strcmp(process, kTargetPackage) == 0;
             env_->ReleaseStringUTFChars(args->nice_name, process);
         }
 
@@ -40,11 +37,8 @@ public:
     void postAppSpecialize(const zygisk::AppSpecializeArgs *) override {
         if (!target_) return;
 
-        // Bootstrap marker. The Media Quality port attaches from this point.
-        // Keep this fail-open: no WhatsApp method is modified unless a resolver
-        // positively identifies the expected 2.26.34 internals.
         LOGI("Injected into com.whatsapp; target baseline=2.26.34; LSPosed=not-required");
-        LOGI("MediaQuality bootstrap active (alpha). Waiting for validated ART resolver hooks.");
+        LOGI("MediaQuality bootstrap active (alpha); unsupported hooks remain fail-open");
     }
 
 private:
